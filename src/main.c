@@ -7,14 +7,12 @@
 char *history[100][100];
 static int historyList = 0;
 static int currentHistoryList = 0;
-const char *Commands[MAX_COMMANDS] = 
-{
-    "help",
-    "clear",
-    "setcolor",
-    "showinfo"
-};
-
+const char *Commands[MAX_COMMANDS] =
+    {
+        "help",
+        "clear",
+        "setcolor",
+        "showinfo"};
 
 // -----------------------------------customed functions -------------------------------------
 
@@ -42,6 +40,18 @@ int strncmp(const char *s1, const char *s2, int n)
     }
     return 0;
 }
+int strncmp2(const char *s1, const char *s2, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        if (s1[i] != s2[i])
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // Custom strlen function
 int strlen(const char *str)
 {
@@ -52,7 +62,7 @@ int strlen(const char *str)
     }
     return len;
 }
-//Custom strcpy function
+// Custom strcpy function
 void strcpy(char *dest, const char *src)
 {
     while (*src)
@@ -60,6 +70,15 @@ void strcpy(char *dest, const char *src)
         *dest++ = *src++;
     }
     *dest = '\0';
+}
+
+void memset(void *str, int startIndex, int index)
+{
+    unsigned char *p = (unsigned char *)str;
+    while (index--)
+    {
+        *p++ = (unsigned char)startIndex;
+    }
 }
 void print_available_commands()
 {
@@ -271,7 +290,6 @@ void setcolor(char *color_name)
 
 void showinfo()
 
-
 {
     mBuf[0] = 12 * 4;
     mBuf[1] = MBOX_REQUEST;
@@ -282,13 +300,12 @@ void showinfo()
     mBuf[5] = 0;          // clear
 
     mBuf[6] = 0x00010003; // tag identifier : MAC address
-    mBuf[7] = 6;          
-    mBuf[8] = 0;          // request code
-    mBuf[9] = 0;          
-    mBuf[10] = 0;         
+    mBuf[7] = 6;
+    mBuf[8] = 0; // request code
+    mBuf[9] = 0;
+    mBuf[10] = 0;
 
     mBuf[11] = MBOX_TAG_LAST;
-
 
     // Note: Board model and Board serial may give 0 values on QEMU.
     if (mbox_call(ADDR(mBuf), MBOX_CH_PROP))
@@ -299,12 +316,31 @@ void showinfo()
         uart_hex(mBuf[9]);
         uart_puts("\n");
         uart_hex(mBuf[10]);
-
     }
     else
     {
         uart_puts("Unable to query!\n");
     }
+}
+
+char *auto_completion(char cli_buffer[], int buffer_index)
+{
+    const char *validCommand[] = {
+        "help", "setcolor", "clear", "showinfo"};
+    for (int i = 0; i < 4; i++)
+    {
+        if (strncmp2(cli_buffer, validCommand[i], buffer_index) == 1)
+        {
+            for (int j = buffer_index; j > 0; j--)
+            {
+                uart_sendc('\b');
+                uart_sendc(' ');
+                uart_sendc('\b');
+            }
+            return (char *)validCommand[i];
+        }
+    }
+    return 0;
 }
 
 void cli()
@@ -314,11 +350,11 @@ void cli()
 
     // read and send back each char
     char c = uart_getc();
-    uart_sendc(c);
 
-    if (c != '\n' && c != '\b')
+    if (c != '\n' && c != '\b' && c != '\t')
     {
-        c != '\n' && c != '\b' && c != '\t';
+        uart_sendc(c);
+        // uart_puts("Hello world");
         cli_buffer[index] = c;
         index++;
     }
@@ -326,18 +362,18 @@ void cli()
     if (c == '\b')
     {
 
-        if (index <= 0)
+        if (index > 0)
         {
-            uart_puts(" ");
-            return;
+            index--;
+            cli_buffer[index] = '\0';
+            uart_sendc('\b');
+            uart_sendc(' ');
+            uart_sendc('\b');
         }
-        uart_puts(" \b");
-        index--;
-        cli_buffer[index] = '\0';
     }
 
-    //Command History (= first then -)
-   if (c == 45) // (-)
+    // Command History (= first then -)
+    if (c == 45) // (-)
     {
         if (currentHistoryList <= 0)
         {
@@ -368,21 +404,30 @@ void cli()
         index = strlen(cli_buffer);
         uart_puts(history[currentHistoryList]);
     }
+    if (c == '\t')
+    {
 
-    // Handle newline  
+        char *completedCommand = auto_completion(cli_buffer, index);
+        index = strlen(completedCommand);
+        memset(cli_buffer, 0, index);
+        strcpy(cli_buffer, completedCommand);
+        uart_puts(cli_buffer);
+    }
 
-    else if (c == '\n')
+    // Handle newline
+
+    if (c == '\n')
     {
         // Terminate the buffer
         cli_buffer[index] = '\0';
         if (index == 0)
-    {
-        // Print the prompt and return without executing any command
-        uart_puts("\n");
-        uart_puts(OS_NAME);
-        uart_puts(":> ");
-        return;
-    }
+        {
+            // Print the prompt and return without executing any command
+            uart_puts("\n");
+            uart_puts(OS_NAME);
+            uart_puts(":> ");
+            return;
+        }
 
         // Process the completed command
         uart_puts("\nGot commands: ");
@@ -405,7 +450,7 @@ void cli()
                     helpExtra[i] = '\0';
                 }
             }
-            help_function(helpExtra); 
+            help_function(helpExtra);
         }
 
         // Check if the command is "clear"
