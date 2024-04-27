@@ -270,7 +270,25 @@ void setcolor(char *color_name)
 }
 
 void showinfo()
+
+
 {
+    mBuf[0] = 12 * 4;
+    mBuf[1] = MBOX_REQUEST;
+    // get board revision
+    mBuf[2] = 0x00010002; // tag identifier : board revision
+    mBuf[3] = 4;          // max response length
+    mBuf[4] = 0;          // request code
+    mBuf[5] = 0;          // clear
+
+    mBuf[6] = 0x00010003; // tag identifier : MAC address
+    mBuf[7] = 6;          
+    mBuf[8] = 0;          // request code
+    mBuf[9] = 0;          
+    mBuf[10] = 0;         
+
+    mBuf[11] = MBOX_TAG_LAST;
+
 
     // Note: Board model and Board serial may give 0 values on QEMU.
     if (mbox_call(ADDR(mBuf), MBOX_CH_PROP))
@@ -279,6 +297,9 @@ void showinfo()
         uart_hex(mBuf[5]);
         uart_puts("\nBoard MAC Address: ");
         uart_hex(mBuf[9]);
+        uart_puts("\n");
+        uart_hex(mBuf[10]);
+
     }
     else
     {
