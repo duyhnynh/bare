@@ -95,7 +95,44 @@ void print_available_commands()
 };
 
 // -----------------------------------main functions -------------------------------------
+//Board Revision
 
+void print_board_revision(const unsigned int *mac) {
+    if (mac = 0x00A02082)
+    {
+        uart_puts("rpi-3B BCM2837 1GiB Sony UK");
+    }
+    else if (mac = 0x00900092)
+    {
+        uart_puts("rpi-Zero BCM2835 512MB Sony UK");
+    }
+    else if (mac = 0x00000010)
+    {
+        uart_puts("rpi-1B+ BCM2835");
+    }
+    else if (mac = 0x00a01041)
+    {
+        uart_puts("rpi-2B BCM2836 1GiB Sony UK");
+    }
+    else
+    {
+        uart_puts("rpi-4B BCM2711 2GiB Sony UK");
+    }
+}
+//Mac Address
+void print_mac_address(const unsigned char *mac) {
+    for (int i = 6; i >= 0; i--) {
+        uart_dec(mac[i] % 16);  // Print last digit
+        uart_dec(mac[i] / 16);  // Print second last digit
+        if (i > 0) {
+            uart_puts("-");
+        }
+    }
+    uart_puts("\n");
+}
+void change_uart_driver (){
+
+}
 // Help function
 void help_function(char *command_name)
 {
@@ -294,28 +331,31 @@ void showinfo()
     mBuf[0] = 12 * 4;
     mBuf[1] = MBOX_REQUEST;
     // get board revision
-    mBuf[2] = 0x00010002; // tag identifier : board revision
-    mBuf[3] = 4;          // max response length
-    mBuf[4] = 0;          // request code
-    mBuf[5] = 0;          // clear
+    mBuf[2] = 0x00010002; // TAG Identifier: Get board revision
+    mBuf[3] = 4;          // Value buffer size in bytes
+    mBuf[4] = 0;          // REQUEST CODE = 0
+    mBuf[5] = 0;          // Clear output buffer 
 
-    mBuf[6] = 0x00010003; // tag identifier : MAC address
-    mBuf[7] = 6;
-    mBuf[8] = 0; // request code
-    mBuf[9] = 0;
-    mBuf[10] = 0;
+
+    mBuf[6] = 0x00010003; // TAG Identifier: MAC address
+    mBuf[7] = 6;          // Value buffer size in bytes
+    mBuf[8] = 0;          // REQUEST CODE = 0
+    mBuf[9] = 0;          // Clear output buffer         
 
     mBuf[11] = MBOX_TAG_LAST;
 
-    // Note: Board model and Board serial may give 0 values on QEMU.
+
     if (mbox_call(ADDR(mBuf), MBOX_CH_PROP))
     {
         uart_puts("\nBoard Revision: ");
-        uart_hex(mBuf[5]);
+        print_board_revision(&mBuf[5]);
+        // uart_hex(mBuf[5]);
         uart_puts("\nBoard MAC Address: ");
-        uart_hex(mBuf[9]);
-        uart_puts("\n");
-        uart_hex(mBuf[10]);
+
+        // uart_hex(mBuf[9]);
+        // uart_puts("\n");
+        // uart_hex(mBuf[10]);
+        print_mac_address((unsigned char*)&mBuf[9]);
     }
     else
     {
